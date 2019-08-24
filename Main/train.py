@@ -27,7 +27,7 @@ import logging, sys
 #		* Decide whether fix_accuracy should be evaluated on a single pixel or otherwise
 
  
-def trainModel_Hyperopt(modelBlock, n_epochs, log_file):
+def trainModel(modelBlock, n_epochs, log_file):
 	# Function TRAIN_MODEL
 	# Trains all models in modelList for n_epochs
 	# Parameters:
@@ -61,9 +61,6 @@ def trainModel_Hyperopt(modelBlock, n_epochs, log_file):
 	epochs_total = epochs_trained + n_epochs
 	print(epochs_total)
 
-	#if ((epochs_total % 50) != 0):
-	#	logger.warning("Epoch total not a multiple of 50; pruning will occur at the closest multiple of 50.")
-	# 50000
 
 	for epoch in range(n_epochs):
 
@@ -123,7 +120,7 @@ def trainModel_Hyperopt(modelBlock, n_epochs, log_file):
 	# Update the total number of epochs trained
 	modelBlock["Meta"]["Epochs_Trained"] = epochs_total
 	print(modelBlock["Meta"]["Epochs_Trained"])	
-
+	
 
 def trainModel_Exp(modelBlock, resultBlock, n_epochs, log_file, result_file, model_file):
 	# Function TRAIN_MODEL
@@ -162,12 +159,11 @@ def trainModel_Exp(modelBlock, resultBlock, n_epochs, log_file, result_file, mod
 		# Generate training samples and iterate through all models in modelList
 		print('Starting epoch %d / %d' % (epoch_real + 1, epochs_total))
 		train_set = generateSamples(modelBlock["Meta"]["N"], modelBlock["Meta"]["Distribution"], 50000, test=False)
-		for key_layer, val_layer in modelBlock.items():
-			if (key_layer != "Meta"):
-				for key, val in modelBlock[key_layer].items():
-					if (key != "Meta"):
-						runEpoch(modelBlock[key_layer][key]["Model"], modelBlock[key_layer]["Meta"]["Loss_Function"], modelBlock[key_layer][key]["Optimizer"], 
-							modelBlock["Meta"]["Type"], modelBlock[key_layer][key]["Batch"], train_set)
+		
+		for key, val in modelBlock.items():
+			if (key != "Meta"):
+				runEpoch(modelBlock[key]["Model"], modelBlock["Meta"]["Loss_Function"], modelBlock[key]["Optimizer"], 
+					modelBlock["Meta"]["Type"], modelBlock[key]["Batch"], train_set)
 		print('Finishing epoch %d / %d' % (epoch_real + 1, epochs_total))
 		
 		# Want to record test error if the total number of epochs is a multiple 50 or this is the final epoch
@@ -179,48 +175,45 @@ def trainModel_Exp(modelBlock, resultBlock, n_epochs, log_file, result_file, mod
 			print('')
 			logger.info('Finishing epoch %d / %d' % (epoch_real + 1, epochs_total))
 
-			for key_layer, val_layer in modelBlock.items():
-				if (key_layer != "Meta"):
-					loss = []
-					accAll = []
-					accPath = []
-					accDistract = []
-				
-					for key, val in modelBlock[key_layer].items():
-						if (key != "Meta"):
-							model_accAll, model_accPath, model_accDistract, model_loss = checkAccuracy(modelBlock[key_layer][key]["Model"], 
-								modelBlock[key_layer]["Meta"]["Loss_Function"], modelBlock["Meta"]["Type"], modelBlock[key_layer][key]["Batch"], testDict)
-							modelBlock[key_layer][key]["Loss"] = model_loss
-							modelBlock[key_layer][key]["Acc_All"] = model_accAll
-							modelBlock[key_layer][key]["Acc_Path"] = model_accPath
-							modelBlock[key_layer][key]["Acc_Distract"] = model_accDistract
 
-							resultBlock[key_layer][key][epoch_real] = {"Loss": model_loss, "Acc_All": model_accAll,
-								"Acc_Path": model_accPath, "Acc_Distract": model_accDistract} 
+			loss = []
+			accAll = []
+			accPath = []
+			accDistract = []
+		
+			for key, val in modelBlock.items():
+				if (key != "Meta"):
+					model_accAll, model_accPath, model_accDistract, model_loss = checkAccuracy(modelBlock[key]["Model"], 
+						modelBlock["Meta"]["Loss_Function"], modelBlock["Meta"]["Type"], modelBlock[key]["Batch"], testDict)
+					modelBlock[key]["Loss"] = model_loss
+					modelBlock[key]["Acc_All"] = model_accAll
+					modelBlock[key]["Acc_Path"] = model_accPath
+					modelBlock[key]["Acc_Distract"] = model_accDistract
 
-							loss.append(model_loss)
-							accAll.append(model_accAll)
-							accPath.append(model_accPath)
-							accDistract.append(model_accDistract)
+					resultBlock[key][epoch_real] = {"Loss": model_loss, "Acc_All": model_accAll,
+						"Acc_Path": model_accPath, "Acc_Distract": model_accDistract} 
 
-					loss_array = np.asarray(loss)
-					accAll_array = np.asarray(accAll)
-					accPath_array = np.asarray(accPath)
-					accDistract_array = np.asarray(accDistract)
-					print(loss_array)
+					loss.append(model_loss)
+					accAll.append(model_accAll)
+					accPath.append(model_accPath)
+					accDistract.append(model_accDistract)
 
-						
-					logger.info('Results for model with %d Layers' % (key_layer))
-					logger.info('[Loss] Mean:%.6f, Median:%.6f, Best:%.6f' % (np.mean(loss_array),
-						np.median(loss_array), np.min(loss_array)))
-					logger.info('[Accuracy (All pixels)] Mean:%.6f, Median:%.6f, Best:%.6f ' % (np.mean(accAll_array),
-						np.median(accAll_array), np.min(accAll_array)))
-					logger.info('[Accuracy (Edge-Connected Paths)] Mean:%.6f, Median:%.6f, Best:%.6f ' % (np.mean(accPath_array),
-						np.median(accPath_array), np.min(accPath_array)))
-					logger.info('[Accuracy (Distractors)] Mean:%.6f, Median:%.6f, Best:%.6f ' % (np.mean(accDistract_array),
-						np.median(accDistract_array), np.min(accDistract_array)))
-					logger.info('')
-					print('')
+			loss_array = np.asarray(loss)
+			accAll_array = np.asarray(accAll)
+			accPath_array = np.asarray(accPath)
+			accDistract_array = np.asarray(accDistract)
+			print(loss_array)
+
+			logger.info('[Loss] Mean:%.6f, Median:%.6f, Best:%.6f' % (np.mean(loss_array),
+				np.median(loss_array), np.min(loss_array)))
+			logger.info('[Accuracy (All pixels)] Mean:%.6f, Median:%.6f, Best:%.6f ' % (np.mean(accAll_array),
+				np.median(accAll_array), np.min(accAll_array)))
+			logger.info('[Accuracy (Edge-Connected Paths)] Mean:%.6f, Median:%.6f, Best:%.6f ' % (np.mean(accPath_array),
+				np.median(accPath_array), np.min(accPath_array)))
+			logger.info('[Accuracy (Distractors)] Mean:%.6f, Median:%.6f, Best:%.6f ' % (np.mean(accDistract_array),
+				np.median(accDistract_array), np.min(accDistract_array)))
+			logger.info('')
+			print('')
 
 		# Update the total number of epochs trained
 		modelBlock["Meta"]["Epochs_Trained"] = epoch_real

@@ -19,12 +19,7 @@ import shutil
 
 # Import functions from submodules
 from train import trainModel_Exp
-from hyperOpt import hyperOpt
 from generateDictionary import generateDictionary_Exp
-
-# Coding ToDo List for module
-#		* Make final check more robust in case all losses > 100
-
 
 
 
@@ -59,8 +54,8 @@ parser.add_argument('--n_epochs', default=100, type=int,
 parser.add_argument('--use_gpu', action='store_true')
 parser.add_argument('--model', default='Recurrent', type=str,
 					help='model types to perform hyperparamer optimization over')
-parser.add_argument('--layers', nargs='+', type=int,
-					help='layer numbers to perform hyperparameter optimization over')
+parser.add_argument('--layers', default=5, type=int,
+					help='number of layers in model')
 parser.add_argument('--image_size', default=15, type=int,
 					help='number of epochs in between hyperband pruning')
 
@@ -80,13 +75,13 @@ def main(args):
 	load_result = args.resume_result
 	hyper_path = args.hyper
 	model_type = args.model
-	layer_list = args.layers
+	layers = args.layers
 	image_size = args.image_size
 	exp_name = args.exp_name
 
 	# Make sure the result directory exists.  If not create
-	directory_logs = '../../RecurrentComputation_Results/Experiments/Logs'
-	directory_results = '../../RecurrentComputation_Results/Experiments/ResultBlock'
+	directory_logs = '../../EdgePixel_Results/Experiments/Logs'
+	directory_results = '../../EdgePixel_Results/Experiments/ResultBlock'
 
 	if not os.path.exists(directory_logs):
 		os.makedirs(directory_logs)
@@ -96,9 +91,9 @@ def main(args):
 
 
 	# Create name for result folders
-	log_file = '../../RecurrentComputation_Results/Experiments/Logs/'+ exp_name + '.log'
-	result_file = '../../RecurrentComputation_Results/Experiments/ResultBlock/resultBlock_' + exp_name + '.pth.tar'
-	model_file = '../../RecurrentComputation_Results/Experiments/ResultBlock/modelBlock_' + exp_name + '.pth.tar'
+	log_file = '../../EdgePixel_Results/Experiments/Logs/'+ exp_name + '.log'
+	result_file = '../../EdgePixel_Results/Experiments/ResultBlock/resultBlock_' + exp_name + '.pth.tar'
+	model_file = '../../EdgePixel_Results/Experiments/ResultBlock/modelBlock_' + exp_name + '.pth.tar'
 
 	# Initizlize Logger
 	logger = logging.getLogger(__name__)
@@ -122,6 +117,7 @@ def main(args):
 
 	# Want to change this so that hyperparameter can only be loaded
 	if os.path.isfile(hyper_path):
+		print('Loading hyperparameter block.')
 		hyperparameter = torch.load(hyper_path)
 	else:
 		print("=> no hyperparameter block found at '{}'".format(hyper_path))
@@ -132,9 +128,7 @@ def main(args):
 		hyperparameter["RecurrentMasked5"][5] = {"Learning": 1e-4, "Batch": 32, "Weight_Decay": 1e-3}
 		hyperparameter["Recurrent"] = {}
 		hyperparameter["Recurrent"][5] = {"Learning": 1e-4, "Batch": 32, "Weight_Decay": 1e-3}
-	# hyperparameter = {}
-	# hyperparameter["Recurrent"] = {}
-	# hyperparameter["Recurrent"][5] = {"Learning": 1e-4, "Batch": 32, "Weight_Decay": 1e-3}
+
 
 	# Set up experiment block
 	num_nodes = image_size**2
@@ -150,7 +144,7 @@ def main(args):
 		resultBlock = torch.load(load_result)
 	else:
 		print("=> Generating new result block")
-		modelBlock, resultBlock = generateDictionary_Exp(n_models, model_type, layer_list, num_nodes, num_nodes,
+		modelBlock, resultBlock = generateDictionary_Exp(n_models, model_type, layers, num_nodes, num_nodes,
 			image_size, loss_fn, dtype, hyperparameter)
 
 
@@ -158,10 +152,11 @@ def main(args):
 	# Figure out how many epochs are left to train
 	epochs_remaining = n_epochs - modelBlock["Meta"]["Epochs_Trained"]
 
-
 	trainModel_Exp(modelBlock, resultBlock, epochs_remaining, log_file, result_file, model_file)
 
 	torch.save(resultBlock, result_file)
+
+	#### NEED to convert models to state_dictionary
 	torch.save(modelBlock, model_file)
 
 

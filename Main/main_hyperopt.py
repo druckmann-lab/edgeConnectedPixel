@@ -19,8 +19,8 @@ import shutil
 import logging, sys
 
 # Import functions from submodules
-from hyperOpt import hyperOpt
-from generateDictionary import convertStateDict_Hyp
+from generateDictionary import generateDictionary_Hyperopt, convertStateDict_Hyp
+from train import trainModel, checkAccuracy
 
 # Coding ToDo List for module
 #		* Make final check more robust in case all losses > 100
@@ -55,12 +55,10 @@ parser.add_argument('--n_epochs', default=100, type=int,
 parser.add_argument('--hyp_epochs', default=4, type=int,
 					help='Total number of pruning rounds')
 parser.add_argument('--use_gpu', action='store_true')
-# parser.add_argument('--models', nargs='+', type=str,
-# 					help='model types to perform hyperparamer optimization over')
 parser.add_argument('--model', default='Recurrent', type=str,
 					help='model to perform hyperparameter optimization over')
-parser.add_argument('--layers', nargs='+', type=int,
-					help='layer numbers to perform hyperparameter optimization over')
+parser.add_argument('--layers', default=5, type=int,
+					help='number of layers in model')
 parser.add_argument('--image_size', default=15, type=int,
 					help='number of epochs in between hyperband pruning')
 
@@ -79,13 +77,13 @@ def main(args):
 	hyp_epochs = args.hyp_epochs
 	load = args.resume
 	model_type = args.model
-	layer_list = args.layers
+	layers = args.layers
 	image_size = args.image_size
 	exp_name = args.exp_name
 
 	# Make sure the result directory exists.  If not create
-	directory_logs = '../../RecurrentComputation_Results/Hyperoptimization/Performance'
-	directory_parameters = '../../RecurrentComputation_Results/Hyperoptimization/Parameters'
+	directory_logs = '../../EdgePixel_Results/Hyperoptimization/Performance'
+	directory_parameters = '../../EdgePixel_Results/Hyperoptimization/Parameters'
 
 	if not os.path.exists(directory_logs):
 		os.makedirs(directory_logs)
@@ -94,10 +92,10 @@ def main(args):
 		os.makedirs(directory_parameters)
 
 	# Create name for result folders
-	hyperopt_file = '../../RecurrentComputation_Results/Hyperoptimization/Parameters/hyperparameter_' + exp_name + '.pth.tar'
-	model_file = '../../RecurrentComputation_Results/Hyperoptimization/Parameters/model_' + exp_name + '.pth.tar'
-	log_file = '../../RecurrentComputation_Results/Hyperoptimization/Performance/'+ exp_name + '.log'
-	result_file = '../../RecurrentComputation_Results/Hyperoptimization/Performance/resultBlock_' + exp_name
+	hyperopt_file = '../../EdgePixel_Results/Hyperoptimization/Parameters/hyperparameter_' + exp_name + '.pth.tar'
+	model_file = '../../EdgePixel_Results/Hyperoptimization/Parameters/model_' + exp_name + '.pth.tar'
+	log_file = '../../EdgePixel_Results/Hyperoptimization/Performance/'+ exp_name + '.log'
+	result_file = '../../EdgePixel_Results/Hyperoptimization/Performance/resultBlock_' + exp_name + '.pth.tar'
 
 	# Initizlize Logger
 	logger = logging.getLogger(__name__)
@@ -119,82 +117,135 @@ def main(args):
 	logger.info('Initial number of models: %d' % (n_models))
 
 	
-	# Setup experiment block
+	# Setup network parameters
 	num_nodes = image_size**2
+	input_size = num_nodes
+	hidden_size = num_nodes
 	loss_fn = nn.MSELoss()
 	dtype = torch.FloatTensor
 	if args.use_gpu:
 		print('GPU is used.')
 		dtype = torch.cuda.FloatTensor
 
-	# Make experiment block
-	count = 0
-	expBlock = {}
-	for layer in layer_list:
-		expBlock[count] = {"Network_Type": model_type, "Layers": layer, 
-			"Input": num_nodes, "Hidden": num_nodes}
-		count = count+1
-
-
-	# Either Initialize the hyperparameter dictionary
-	# or load it in if the resume flag is passed in
-	# if args.resume:
-	# 	if os.path.isfile(load):
-	# 		hyperparameter = torch.load(load)
-	# 	else:
-	# 		print("=> no hyperparameter block found at '{}'".format(load))
-	# else:
 	hyperparameter = {}
 
-	runHyperOpt(expBlock, hyperparameter, n_models, n_epochs, hyp_epochs, loss_fn, dtype, image_size, model_file, result_file, log_file)
 
-	# Save out the updated hyperparameter block and the results form all the experiments
+
+	# Run hyperband epoch		
+	modelBlock, resultBlock = generateDictionary_Hyperopt(n_models, model_type, layers, 
+		input_size, hidden_size, image_size, loss_fn, dtype)
+
+	torch.save(resultBlock, result_file)
+	modelBlock_State = convertStateDict_Hyp(modelBlock)
+	torch.save(modelBlock_State, model_file)
+
+	for h_epoch in range(hyp_epochs):
+		trainModel(modelBlock, n_epochs, log_file)
+		pruneModel(modelBlock, resultBlock)
+		torch.save(resultBlock, result_file)
+		modelBlock_State = convertStateDict_Hyp(modelBlock)
+		torch.save(modelBlock_State, model_file)
+
+	trainModel(modelBlock, n_epochs, log_file)
+
+	epoch_total = modelBlock["Meta"]["Epochs_Trained"]
+	resultBlock["Meta"]["Total_Epochs"] = epoch_total
+
+	# Find the model id with best loss and return its parameters
+	best_loss = 1000.0
+	for key, val in modelBlock.items():
+		if (key != "Meta"):
+			resultBlock[key][epoch_total] = {"Loss": modelBlock[key]["Loss"], "Acc_All": modelBlock[key]["Acc_All"],
+				"Acc_Path": modelBlock[key]["Acc_Path"], "Acc_Distract": modelBlock[key]["Acc_Distract"]}
+			resultBlock[key]["Hyperparameter"]["Max_Epoch"] = epoch_total
+
+			if ((modelBlock[key]["Loss"] < best_loss)):
+				best_loss = modelBlock[key]["Loss"]
+				best_key = key
+
+	# This ensures that values are returned even if none of the keys have loss >= 1000.0
+	# This should not happen so print an error to the log
+	if (best_loss >= 1000.0):
+		logger.warning('All models had loss greater than 1000.0')
+		logger.warning('Returning parameters for first remaining model')
+		keys = list(modelBlock.keys())
+		keys.remove("Meta")
+		best_key = next(iter(keys))
+
+	
+	lr = modelBlock[best_key]["Learning"]
+	batch_size = modelBlock[best_key]["Batch"]
+	weight_decay = modelBlock[best_key]["Weight_Decay"]
+	acc = modelBlock[best_key]["Accuracy"]
+	avg_loss = modelBlock[best_key]["Loss"]
+
+	resultBlock["Meta"]["Learning"] = modelBlock[best_key]["Learning"]
+	resultBlock["Meta"]["Batch"] = modelBlock[best_key]["Batch"]
+	resultBlock["Meta"]["Weight_Decay"] = modelBlock[best_key]["Weight_Decay"]
+	resultBlock["Meta"]["Acc_All"] = modelBlock[best_key]["Acc_All"]
+	resultBlock["Meta"]["Acc_Path"] = modelBlock[best_key]["Acc_Path"]
+	resultBlock["Meta"]["Acc_Distract"] = modelBlock[best_key]["Acc_Distract"]
+	resultBlock["Meta"]["Loss"] = modelBlock[best_key]["Loss"]
+	resultBlock["Meta"]["Best_Key"] = best_key
+
+	torch.save(resultBlock, result_file)
+	modelBlock_State = convertStateDict_Hyp(modelBlock)
+	torch.save(modelBlock_State, model_file)
+
+
+	if (not(model_type in hyperparameter)):
+		hyperparameter[model_type] = {}
+	if (not(layers in hyperparameter[model_type])):
+		hyperparameter[model_type][layers] = {}
+	hyperparameter[model_type][layers]["Learning"] = lr
+	hyperparameter[model_type][layers]["Batch"] = batch_size
+	hyperparameter[model_type][layers]["Weight_Decay"] = weight_decay
+	hyperparameter[model_type][layers]["Acc"] = acc
+	hyperparameter[model_type][layers]["Loss"] = avg_loss
+
+		
+	torch.save(resultBlock, result_file)
 	torch.save(hyperparameter, hyperopt_file)
 
 
 
-
-
-
-
-
-def runHyperOpt(expBlock, hyperparameter, n_models, n_epochs, hyp_epochs, loss_fn, dtype, image_size, model_file, result_file, log_file):
-	##################################################################
-	# Function RUN_HYPER_OPT
-	# Takes in a nested dictionary of model/layer types
-	# Outputs a nested dictionary of optimized hyperparameters
+def pruneModel(modelBlock, resultBlock):
+	# Function PRUNE_MODELS
+	# Takes a modelBlock and modelList and returns the top half of performers
+	# Deletes remaining models form the modelBlock and modelList
 	# Parameters:
-	# 		* expBlock: Nested dictionary of archtiectures
-	#       * n_epochs: Number of epochs for which to train
-	#       * N: size of image to generate
-	# Outputs
-	#		* hyperparameter: Nested dictionary of hyperparameters
+	# 		* modelBlock: Nested dictionary of models
+	#       * modelList: List with key values of reamining models
 
-	# Read in all the arguments that define the hyperOpt experiment
-	##################################################################
+	# First need to obtain all the loss values
+	epoch_total = modelBlock["Meta"]["Epochs_Trained"]
+	resultBlock["Meta"]["Total_Epochs"] = epoch_total
 
-	# Nested loop over experiments
-	for key, val in expBlock.items():
-		result_file_layer = result_file + '_' + str(expBlock[key]["Layers"]) + '.pth.tar'
-		model_file_layer = model_file + '_' + str(expBlock[key]["Layers"]) + '.pth.tar'
-		network = expBlock[key]["Network_Type"]
-		layers = expBlock[key]["Layers"]
-		lr, batch_size, weight_decay, acc, avg_loss, resultBlock = hyperOpt(n_models, n_epochs, hyp_epochs, network, 
-			layers, expBlock[key]["Input"], expBlock[key]["Hidden"], image_size, dtype, log_file, result_file_layer, model_file_layer)
-		if (not(network in hyperparameter)):
-			hyperparameter[network] = {}
-		if (not(layers in hyperparameter[network])):
-			hyperparameter[network][layers] = {}
-		hyperparameter[network][layers]["Learning"] = lr
-		hyperparameter[network][layers]["Batch"] = batch_size
-		hyperparameter[network][layers]["Weight_Decay"] = weight_decay
-		hyperparameter[network][layers]["Acc"] = acc
-		hyperparameter[network][layers]["Loss"] = avg_loss
+	loss = []
+	for key, val in modelBlock.items():
+		if (key != "Meta"):
+			loss.append(modelBlock[key]["Loss"])
 
-		
-		torch.save(resultBlock, result_file_layer)
+			# Update all the results for the trained models
+			resultBlock[key][epoch_total] = {"Loss": modelBlock[key]["Loss"], "Acc_All": modelBlock[key]["Acc_All"],
+				"Acc_Path": modelBlock[key]["Acc_Path"], "Acc_Distract": modelBlock[key]["Acc_Distract"]}
+			resultBlock[key]["Hyperparameter"]["Max_Epoch"] = epoch_total
 
+
+	loss_array = np.asarray(loss)
+	loss_median = np.median(loss)
+
+	selectedKeys = list()
 	
+	# Delete models with loss values grater than the median
+	for key, val in modelBlock.items():
+		if (key != "Meta"):
+			if ((modelBlock[key]["Loss"] > loss_median)):
+				selectedKeys.append(key)
+
+	for key in selectedKeys:
+		if key in modelBlock:
+			del modelBlock[key]
 
 
 
