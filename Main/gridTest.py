@@ -18,8 +18,16 @@ import collections
 import shutil
 
 # Import functions from submodules
-from train import trainModel_Exp
-from generateDictionary import generateDictionary_Exp, convertStateDict
+from train import checkAccuracy
+import networkFiles as NF
+from samples import generateSamples
+#from hyperOpt import hyperOpt
+#from generateDictionary import generateDictionary_Exp, generateDictionary_Hyperopt, convertStateDict_Hyp
+
+
+# Coding ToDo List for module
+#		* Make final check more robust in case all losses > 100
+
 
 
 
@@ -54,8 +62,8 @@ parser.add_argument('--n_epochs', default=100, type=int,
 parser.add_argument('--use_gpu', action='store_true')
 parser.add_argument('--model', default='Recurrent', type=str,
 					help='model types to perform hyperparamer optimization over')
-parser.add_argument('--layers', default=5, type=int,
-					help='number of layers in model')
+parser.add_argument('--layers', nargs='+', type=int,
+					help='layer numbers to perform hyperparameter optimization over')
 parser.add_argument('--image_size', default=15, type=int,
 					help='number of epochs in between hyperband pruning')
 
@@ -75,59 +83,10 @@ def main(args):
 	load_result = args.resume_result
 	hyper_path = args.hyper
 	model_type = args.model
-	layers = args.layers
+	layer_list = args.layers
 	image_size = args.image_size
 	exp_name = args.exp_name
 
-	# Make sure the result directory exists.  If not create
-	directory_logs = '../../EdgePixel_Results/Experiments/Logs'
-	directory_results = '../../EdgePixel_Results/Experiments/ResultBlock'
-
-	if not os.path.exists(directory_logs):
-		os.makedirs(directory_logs)
-
-	if not os.path.exists(directory_results):
-		os.makedirs(directory_results)
-
-
-	# Create name for result folders
-	log_file = '../../EdgePixel_Results/Experiments/Logs/'+ exp_name + '.log'
-	result_file = '../../EdgePixel_Results/Experiments/ResultBlock/resultBlock_' + exp_name + '.pth.tar'
-	model_file = '../../EdgePixel_Results/Experiments/ResultBlock/modelBlock_' + exp_name + '.pth.tar'
-
-	# Initizlize Logger
-	logger = logging.getLogger(__name__)
-	logger.setLevel(logging.INFO)
-
-	formatter = logging.Formatter('[%(asctime)s:%(name)s]:%(message)s')
-
-	file_handler = logging.FileHandler(log_file)
-	file_handler.setFormatter(formatter)
-
-	stream_handler = logging.StreamHandler()
-	stream_handler.setFormatter(formatter)
-
-	logger.addHandler(file_handler)
-	logger.addHandler(stream_handler)
-
-	# Print experiment parameters to log
-	logger.info('Training %s models with %i layers for %d epochs.' % (model_type, layers, n_epochs))
-	logger.info('Number of models: %d' % (n_models))
-
-
-	# Want to change this so that hyperparameter can only be loaded
-	if os.path.isfile(hyper_path):
-		print('Loading hyperparameter block.')
-		hyperparameter = torch.load(hyper_path)
-	else:
-		print("=> no hyperparameter block found at '{}'".format(hyper_path))
-		hyperparameter = {}
-		hyperparameter["RecurrentGrid"] = {}
-		hyperparameter["RecurrentGrid"][25] = {"Learning": 1e-4, "Batch": 32, "Weight_Decay": 1e-3}
-		# hyperparameter["RecurrentMasked5"] = {}
-		# hyperparameter["RecurrentMasked5"][5] = {"Learning": 1e-4, "Batch": 32, "Weight_Decay": 1e-3}
-		# hyperparameter["Recurrent"] = {}
-		# hyperparameter["Recurrent"][5] = {"Learning": 1e-4, "Batch": 32, "Weight_Decay": 1e-3}
 
 
 	# Set up experiment block
@@ -137,27 +96,51 @@ def main(args):
 	if args.use_gpu:
 		print('GPU is used.')
 		dtype = torch.cuda.FloatTensor
-	
 
-	if ((load_experiment) and os.path.isfile(load_experiment) and os.path.isfile(load_result)):
-		modelBlock = torch.load(load_experiment)
-		resultBlock = torch.load(load_result)
-	else:
-		print("=> Generating new result block")
-		modelBlock, resultBlock = generateDictionary_Exp(n_models, model_type, layers, num_nodes, num_nodes,
-			image_size, loss_fn, dtype, hyperparameter)
+	n = 25
+	N = 15
+	N2 = N*N
+	distribution = np.ones(n)/n
 
+	layer = [2,3,5,10,15,20,25, 30]
 
+	loss_array = []
+	accAll_array = []
+	accPath_array = []
+	accDistract_array = []
+	batch = 1
 
-	# Figure out how many epochs are left to train
-	epochs_remaining = n_epochs - modelBlock["Meta"]["Epochs_Trained"]
+	print("Generating Samples")
+	testDict = generateSamples(N, distribution, 50000, test=True)
+	for i in layer:
+		# Generate model with the appropriate layer
+		print(i)
+		model = NF.RecurrentScaledGrid(N2, N2, N2, i, N)
+		print(i)
+		accAll, accPath, accDistract, avg_loss = checkAccuracy(model, loss_fn, dtype, batch, testDict)
 
-	trainModel_Exp(modelBlock, resultBlock, epochs_remaining, log_file, result_file, model_file)
+		loss_array.append(avg_loss)
+		accAll_array.append(accAll)
+		accPath_array.append(accPath)
+		accDistract_array.append(accDistract)
 
-	torch.save(resultBlock, result_file)
+		print(accAll)
+		#print(accPath)
+		print(accDistract)
 
-	modelBlock_State = convertStateDict(modelBlock)
-	torch.save(modelBlock_State, model_file)
+	layer_array = np.asarray(layer)
+	loss_array = np.asarray(loss_array)
+	accAll_array = np.asarray(accAll_array)
+	accPath_array = np.asarray(accPath_array)
+	accDistract_array = np.asarray(accDistract_array)
+
+	resultBlock = {"Layer": layer_array, "Loss": loss_array, "All": accAll_array, "Path": accPath_array, "Distract": accDistract_array}
+	print(resultBlock["All"])
+	print(resultBlock["Path"])
+	print(resultBlock["Distract"])
+
+	torch.save(resultBlock, "Grid.pth.tar")
+
 
 
 if __name__ == '__main__':
