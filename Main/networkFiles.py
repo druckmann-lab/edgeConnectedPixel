@@ -128,6 +128,26 @@ class RecurrentScaledGrid(torch.nn.Module):
 		return u
 
 
+class RecurrentScaledGridFixed(torch.nn.Module):
+	def __init__(self, D_in, H, D_out, layers, imageSize):
+		super(RecurrentScaledGridFixed, self).__init__()
+		weightMask, diagMask = generateGridWeightMask(imageSize)
+		self.iteratedLayer = RepeatedLayersMaskedFixed(D_in, H, layers, weightMask, diagMask)
+		self.outputLayer = nn.Linear(H, D_out)
+		self.tanh = nn.Tanh()
+		self.hidden_size = H
+
+	def forward(self, x, dtype):
+		#dtype = torch.cuda.FloatTensor
+		
+		u = Variable(-1*torch.ones(self.hidden_size).type(dtype))
+		u = self.iteratedLayer(u, x)
+		#y_pred = u#(self.tanh(self.outputLayer(u)))
+		return u
+
+
+
+
 class RecurrentScaledMultiplicative(torch.nn.Module):
 	def __init__(self, D_in, H, D_out, layers):
 		super(RecurrentScaledMultiplicative, self).__init__()
@@ -242,24 +262,6 @@ class RepeatedLayersMasked(torch.nn.Module):
 		return u
 
 
-# class RepeatedLayersScaledMasked(torch.nn.Module):
-# 	def __init__(self, D_input, hidden, layers, weightMask):
-# 		super(RepeatedLayersScaledMasked, self).__init__()
-# 		self.iteration = layers
-# 		self.hiddenWeight = nn.Parameter(torch.Tensor(hidden, hidden))
-# 		self.hiddenBias = nn.Parameter(torch.Tensor(hidden))
-# 		self.inputWeight = nn.Linear(D_input, hidden, bias=False)
-# 		self.weightMask = weightMask
-# 		self.tanh = nn.Tanh()
-# 		self.scalar = nn.Parameter(torch.ones(1)*2, requires_grad=True)
-
-# 	def forward(self, initial_hidden, input):
-# 		u = initial_hidden.clone()
-# 		for _ in range(0, self.iteration):
-# 			v = F.linear(u, (self.weightMask * self.hiddenWeight), self.hiddenBias) + self.inputWeight(input)
-# 			u = self.tanh(v * self.scalar.expand_as(v))
-# 		return u
-
 class RepeatedLayersScaledMasked(torch.nn.Module):
 	def __init__(self, D_input, hidden, layers, weightMask, diagMask):
 		super(RepeatedLayersScaledMasked, self).__init__()
@@ -272,7 +274,7 @@ class RepeatedLayersScaledMasked(torch.nn.Module):
 		self.hiddenWeight = nn.Linear(hidden, hidden)
 		self.inputWeight = nn.Linear(D_input, hidden, bias=False)
 		self.tanh = nn.Tanh()
-		self.scalar = nn.Parameter(torch.ones(1)*20, requires_grad=True)
+		self.scalar = nn.Parameter(torch.ones(1)*5, requires_grad=True)
 		self.hiddenWeight.weight.data[self.invertMask] = 0
 		#self.hiddenWeight.weight.data[self.mask] = 0.25
 
@@ -305,9 +307,9 @@ class RepeatedLayersScaledMasked(torch.nn.Module):
 
 
 # This is the class to use to get forward-engineered values
-class RepeatedLayersScaledMaskedFixed(torch.nn.Module):
+class RepeatedLayersMaskedFixed(torch.nn.Module):
 	def __init__(self, D_input, hidden, layers, weightMask, diagMask):
-		super(RepeatedLayersScaledMaskedFixed, self).__init__()
+		super(RepeatedLayersMaskedFixed, self).__init__()
 
 		self.mask = weightMask
 		self.diagMask = diagMask
@@ -317,7 +319,7 @@ class RepeatedLayersScaledMaskedFixed(torch.nn.Module):
 		self.hiddenWeight = nn.Linear(hidden, hidden)
 		self.inputWeight = nn.Linear(D_input, hidden, bias=False)
 		self.tanh = nn.Tanh()
-		self.scalar = nn.Parameter(torch.ones(1)*20, requires_grad=True)
+		self.scalar = nn.Parameter(torch.ones(1)*20, requires_grad=False)
 		self.hiddenWeight.weight.data[self.invertMask] = 0
 		self.hiddenWeight.weight.data[self.mask] = 0.25
 
@@ -325,8 +327,12 @@ class RepeatedLayersScaledMaskedFixed(torch.nn.Module):
 		self.inputWeight.weight.data[self.diagMask] = 1
 		self.hiddenWeight.bias.data[:] = -0.15
 
-		self.hiddenWeight.weight.register_hook(self.backward_hook)
-		self.inputWeight.weight.register_hook(self.backward_hook_input)
+		# Turn off the gradient on all parameters
+		for param in self.hiddenWeight.parameters():
+			param.requires_grad = False
+
+		for param in self.inputWeight.parameters():
+			param.requires_grad = False
 		
 
 	def forward(self, initial_hidden, input):
@@ -337,16 +343,6 @@ class RepeatedLayersScaledMaskedFixed(torch.nn.Module):
 			#u = torch.sign(u)
 		return u
 
-	def backward_hook(self, grad):
-		out = grad.clone()
-		out[self.invertMask] = 0
-		return out
-
-
-	def backward_hook_input(self, grad):
-		out = grad.clone()
-		out[self.invertDiag] = 0
-		return out
 
 
 

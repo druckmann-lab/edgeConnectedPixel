@@ -80,8 +80,8 @@ def main(args):
 	exp_name = args.exp_name
 
 	# Make sure the result directory exists.  If not create
-	directory_logs = '../../EdgePixel_Results/Experiments/Logs'
-	directory_results = '../../EdgePixel_Results/Experiments/ResultBlock'
+	directory_logs = '../../SinglePixel_Results/Experiments/Logs'
+	directory_results = '../../SinglePixel_Results/Experiments/ResultBlock'
 
 	if not os.path.exists(directory_logs):
 		os.makedirs(directory_logs)
@@ -91,9 +91,9 @@ def main(args):
 
 
 	# Create name for result folders
-	log_file = '../../EdgePixel_Results/Experiments/Logs/'+ exp_name + '.log'
-	result_file = '../../EdgePixel_Results/Experiments/ResultBlock/resultBlock_' + exp_name + '.pth.tar'
-	model_file = '../../EdgePixel_Results/Experiments/ResultBlock/modelBlock_' + exp_name + '.pth.tar'
+	log_file = '../../SinglePixel_Results/Experiments/Logs/'+ exp_name + '.log'
+	result_file = '../../SinglePixel_Results/Experiments/ResultBlock/resultBlock_' + exp_name + '.pth.tar'
+	model_file = '../../SinglePixel_Results/Experiments/ResultBlock/modelBlock_' + exp_name + '.pth.tar'
 
 	# Initizlize Logger
 	logger = logging.getLogger(__name__)
@@ -124,6 +124,8 @@ def main(args):
 		hyperparameter = {}
 		hyperparameter["RecurrentGrid"] = {}
 		hyperparameter["RecurrentGrid"][25] = {"Learning": 1e-4, "Batch": 32, "Weight_Decay": 1e-3}
+		hyperparameter["GridFixed"] = {}
+		hyperparameter["GridFixed"][25] = {"Learning": 1e-4, "Batch": 32, "Weight_Decay": 1e-3}
 		# hyperparameter["RecurrentMasked5"] = {}
 		# hyperparameter["RecurrentMasked5"][5] = {"Learning": 1e-4, "Batch": 32, "Weight_Decay": 1e-3}
 		# hyperparameter["Recurrent"] = {}
@@ -132,7 +134,7 @@ def main(args):
 
 	# Set up experiment block
 	num_nodes = image_size**2
-	loss_fn = nn.MSELoss()
+	loss_fn = nn.CrossEntropyLoss()
 	dtype = torch.FloatTensor
 	if args.use_gpu:
 		print('GPU is used.')

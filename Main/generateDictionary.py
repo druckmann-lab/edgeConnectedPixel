@@ -112,6 +112,8 @@ def modelInit(modelBlock, model_type, key, input_size, hidden_size, layers, imag
 		modelBlock[key]["Model"] = NF.RecurrentScaledMasked(input_size, hidden_size, input_size, layers, image_size, 2)
 	elif (model_type == "RecurrentGrid"):
 		modelBlock[key]["Model"] = NF.RecurrentScaledGrid(input_size, hidden_size, input_size, layers, image_size)
+	elif (model_type == "GridFixed"):
+		modelBlock[key]["Model"] = NF.RecurrentScaledGridFixed(input_size, hidden_size, input_size, layers, image_size)
 	elif (model_type == "RecurrentMultiplicative"):
 		modelBlock[key]["Model"] = NF.RecurrentScaledMultiplicative(input_size, hidden_size, input_size, layers)
 	else:

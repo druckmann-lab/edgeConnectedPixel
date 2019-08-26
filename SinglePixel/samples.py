@@ -18,13 +18,14 @@ def generateSamples(N, distribution, numTraining, test=False):
 	N2 = N**2
 	min_length = 0
 
+	center = np.ceil(N2/2).astype(int)
+
 	quota = np.ceil(distribution*numTraining)
 	quota = quota.astype(int)
 	maxLength = len(quota)
 	current = np.zeros(maxLength)
 	trainFeatures = np.zeros((numTraining, N2))
-	trainLabels = np.zeros((numTraining, N2))
-	trainDistract = np.zeros((numTraining, N2))
+	trainLabels = np.zeros((numTraining))
 	pathLengths = np.zeros((numTraining))
 
 	j = 0
@@ -218,8 +219,11 @@ def generateSamples(N, distribution, numTraining, test=False):
 			xDistract_vec[xDistract_vec == 0] = -1
 
 			trainFeatures[j, :] = X_vec
-			trainLabels[j, :] = xLabel_vec
-			trainDistract[j, :] = xDistract_vec
+			if (xLabel_vec[:, center] == -1):
+				trainLabels[j] = 0
+			else:
+				trainLabels[j] = 1
+
 			current[x-1] = current[x-1]+1
 			j = j+1
 		elif (x >= maxLength):
@@ -232,8 +236,11 @@ def generateSamples(N, distribution, numTraining, test=False):
 			xDistract_vec[xDistract_vec == 0] = -1
 
 			trainFeatures[j, :] = X_vec
-			trainLabels[j, :] = xLabel_vec
-			trainDistract[j, :] = xDistract_vec
+			if (xLabel_vec[:, center] == -1):
+				trainLabels[j] = 0
+			else:
+				trainLabels[j] = 1
+			
 			current[maxLength-1] = current[maxLength-1]+1
 			j = j+1
 
@@ -242,11 +249,10 @@ def generateSamples(N, distribution, numTraining, test=False):
 	if (test):
 		trainFeatures = torch.from_numpy(trainFeatures)
 		trainLabels = torch.from_numpy(trainLabels)
-		trainDistract = torch.from_numpy(trainDistract)
 
-		testDict = {"Features": trainFeatures, "Labels": trainLabels, "Distractors": trainDistract}
+		trainset = torch.utils.data.TensorDataset(trainFeatures, trainLabels)
 
-		return testDict
+		return trainset
 
 
 	else:
