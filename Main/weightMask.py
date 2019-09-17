@@ -31,18 +31,23 @@ def generateSquareWeightMask(imageSize, boundarySize):
 		i,j = ind2subImage(k, imageSize)
 		pixelMask = np.zeros((imageSize, imageSize))
 
-		row_min = np.max((0, i - boundarySize))
-		row_max = np.min((imageSize, i + boundarySize + 1))
-		col_min = np.max((0, j - boundarySize))
-		col_max = np.min((imageSize, j + boundarySize + 1))
+		if((i > 0) and (i < imageSize - 1) and (j > 0) and (j < imageSize - 1)):
+			row_min = np.max((0, i - boundarySize))
+			row_max = np.min((imageSize, i + boundarySize + 1))
+			col_min = np.max((0, j - boundarySize))
+			col_max = np.min((imageSize, j + boundarySize + 1))
 
-		pixelMask[row_min:row_max, col_min:col_max] = 1
+			pixelMask[row_min:row_max, col_min:col_max] = 1
+
+		pixelMask[i,j] = 0
+		diagMask[k, k] = 1
 
 
 		weightMask[k, :] = np.reshape(pixelMask, (1, numPixels))
-	weightMask = torch.from_numpy(weightMask).type(torch.ByteTensor)
+	weightMask = torch.from_numpy(weightMask).type(torch.cuda.ByteTensor)
+	diagMask = torch.from_numpy(diagMask).type(torch.cuda.ByteTensor)
 
-	return weightMask
+	return weightMask, diagMask
 
 
 

@@ -123,9 +123,11 @@ def main(args):
 		print("=> no hyperparameter block found at '{}'".format(hyper_path))
 		hyperparameter = {}
 		hyperparameter["RecurrentGrid"] = {}
-		hyperparameter["RecurrentGrid"][25] = {"Learning": 1e-4, "Batch": 32, "Weight_Decay": 1e-3}
+		hyperparameter["RecurrentGrid"][25] = {"Learning": 1e-3, "Batch": 32, "Weight_Decay": 0}
 		hyperparameter["GridFixed"] = {}
-		hyperparameter["GridFixed"][25] = {"Learning": 1e-4, "Batch": 32, "Weight_Decay": 1e-3}
+		hyperparameter["GridFixed"][25] = {"Learning": 1e-3, "Batch": 32, "Weight_Decay": 0}
+		hyperparameter["RecurrentMasked5"] = {}
+		hyperparameter["RecurrentMasked5"][25] = {"Learning": 1e-3, "Batch": 32, "Weight_Decay": 0}
 		# hyperparameter["RecurrentMasked5"] = {}
 		# hyperparameter["RecurrentMasked5"][5] = {"Learning": 1e-4, "Batch": 32, "Weight_Decay": 1e-3}
 		# hyperparameter["Recurrent"] = {}

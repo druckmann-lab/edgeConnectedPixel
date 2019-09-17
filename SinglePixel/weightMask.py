@@ -40,9 +40,11 @@ def generateSquareWeightMask(imageSize, boundarySize):
 
 
 		weightMask[k, :] = np.reshape(pixelMask, (1, numPixels))
+		
 	weightMask = torch.from_numpy(weightMask).type(torch.ByteTensor)
+	diagMask = torch.from_numpy(diagMask).type(torch.ByteTensor)
 
-	return weightMask
+	return weightMask, diagMask
 
 
 

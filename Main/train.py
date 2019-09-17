@@ -169,7 +169,7 @@ def trainModel_Exp(modelBlock, resultBlock, n_epochs, log_file, result_file, mod
 		print('Finishing epoch %d / %d' % (epoch_real + 1, epochs_total))
 		
 		# Want to record test error if the total number of epochs is a multiple 50 or this is the final epoch
-		if (((epoch_real % 50) == 0) or (epoch == (n_epochs - 1))):	
+		if (((epoch_real % 10) == 0) or (epoch == (n_epochs - 1))):	
 
 			# Every 50 epochs, evaluate the performance of all the models and print summary statistics
 			testDict = generateSamples(modelBlock["Meta"]["N"], modelBlock["Meta"]["Distribution"], 100000, test=True)

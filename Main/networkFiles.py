@@ -274,7 +274,7 @@ class RepeatedLayersScaledMasked(torch.nn.Module):
 		self.hiddenWeight = nn.Linear(hidden, hidden)
 		self.inputWeight = nn.Linear(D_input, hidden, bias=False)
 		self.tanh = nn.Tanh()
-		self.scalar = nn.Parameter(torch.ones(1)*5, requires_grad=True)
+		self.scalar = nn.Parameter(torch.ones(1)*2, requires_grad=True)
 		self.hiddenWeight.weight.data[self.invertMask] = 0
 		#self.hiddenWeight.weight.data[self.mask] = 0.25
 
