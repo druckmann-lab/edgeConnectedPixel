@@ -121,10 +121,10 @@ def main(args):
 		hyperparameter = torch.load(hyper_path)
 	else:
 		print("=> no hyperparameter block found at '{}'".format(hyper_path))
-		hyperparameter = {}
-		hyperparameter["RecurrentGrid"] = {}
-		hyperparameter["RecurrentGrid"][25] = {"Learning": 1e-3, "Batch": 32, "Weight_Decay": 0}
-		hyperparameter["RecurrentGrid"][30] = {"Learning": 1e-3, "Batch": 32, "Weight_Decay": 0}
+		# hyperparameter = {}
+		# hyperparameter["RecurrentGrid"] = {}
+		# hyperparameter["RecurrentGrid"][25] = {"Learning": 1e-3, "Batch": 32, "Weight_Decay": 0}
+		# hyperparameter["RecurrentGrid"][30] = {"Learning": 1e-3, "Batch": 32, "Weight_Decay": 0}
 		# hyperparameter["RecurrentMasked5"] = {}
 		# hyperparameter["RecurrentMasked5"][5] = {"Learning": 1e-4, "Batch": 32, "Weight_Decay": 1e-3}
 		# hyperparameter["Recurrent"] = {}

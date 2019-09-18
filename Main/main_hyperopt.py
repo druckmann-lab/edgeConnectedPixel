@@ -136,14 +136,14 @@ def main(args):
 		input_size, hidden_size, image_size, loss_fn, dtype)
 
 	torch.save(resultBlock, result_file)
-	modelBlock_State = convertStateDict_Hyp(modelBlock)
+	modelBlock_State = convertStateDict(modelBlock)
 	torch.save(modelBlock_State, model_file)
 
 	for h_epoch in range(hyp_epochs):
 		trainModel(modelBlock, n_epochs, log_file)
 		pruneModel(modelBlock, resultBlock)
 		torch.save(resultBlock, result_file)
-		modelBlock_State = convertStateDict_Hyp(modelBlock)
+		modelBlock_State = convertStateDict(modelBlock)
 		torch.save(modelBlock_State, model_file)
 
 	trainModel(modelBlock, n_epochs, log_file)
