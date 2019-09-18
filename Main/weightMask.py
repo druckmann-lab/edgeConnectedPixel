@@ -44,8 +44,8 @@ def generateSquareWeightMask(imageSize, boundarySize):
 
 
 		weightMask[k, :] = np.reshape(pixelMask, (1, numPixels))
-	weightMask = torch.from_numpy(weightMask).type(torch.cuda.ByteTensor)
-	diagMask = torch.from_numpy(diagMask).type(torch.cuda.ByteTensor)
+	weightMask = torch.from_numpy(weightMask).type(torch.BoolTensor)
+	diagMask = torch.from_numpy(diagMask).type(torch.BoolTensor)
 
 	return weightMask, diagMask
 
@@ -82,8 +82,8 @@ def generateGridWeightMask(imageSize):
 
 		weightMask[k, :] = np.reshape(pixelMask, (1, numPixels))
 		#diagMask[k, k] = 1
-	weightMask = torch.from_numpy(weightMask).type(torch.ByteTensor)
-	diagMask = torch.from_numpy(diagMask).type(torch.ByteTensor)
+	weightMask = torch.from_numpy(weightMask).type(torch.cuda.BoolTensor)
+	diagMask = torch.from_numpy(diagMask).type(torch.cuda.BoolTensor)
 
 
 	return weightMask, diagMask
