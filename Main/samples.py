@@ -7,7 +7,6 @@
 import numpy as np
 import torch
 import torch.utils.data
-import matplotlib.pyplot as plt
 
 
 def generateSamples(N, distribution, numTraining, test=False):

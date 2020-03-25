@@ -3,18 +3,16 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-from torchvision import transforms
+#from torchvision import transforms
 from torch.autograd import Variable 
 import copy
 import numpy as np
 import os
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
-import matplotlib.pyplot as plt
 import math
 import time
 from samples import generateSamples
-from scipy.io import savemat
 import collections
 import shutil
 import networkFiles as NF
@@ -169,7 +167,7 @@ def trainModel_Exp(modelBlock, resultBlock, n_epochs, log_file, result_file, mod
 		print('Finishing epoch %d / %d' % (epoch_real + 1, epochs_total))
 		
 		# Want to record test error if the total number of epochs is a multiple 50 or this is the final epoch
-		if (((epoch_real % 10) == 0) or (epoch == (n_epochs - 1))):	
+		if (((epoch_real % 25) == 0) or (epoch == (n_epochs - 1))):	
 
 			# Every 50 epochs, evaluate the performance of all the models and print summary statistics
 			testDict = generateSamples(modelBlock["Meta"]["N"], modelBlock["Meta"]["Distribution"], 100000, test=True)
@@ -278,7 +276,7 @@ def checkAccuracy(model, loss_fn, dtype, batch, testDict):
 		# Cast the image data to the correct type and wrap it in a Variable. At
 		# test-time when we do not need to compute gradients, marking the Variable
 		# as volatile can reduce memory usage and slightly improve speed.
-		x = Variable(x.type(dtype), volatile=True)
+		x = Variable(x.type(dtype), requires_grad=False)
 		y = Variable(y.type(dtype), requires_grad=False)
 
 		# Run the model forward and compare with ground truth.
@@ -304,7 +302,7 @@ def checkAccuracy(model, loss_fn, dtype, batch, testDict):
 	# Now find the accuracy on Distractor pixels
 	for x, y in loaderDistract:
 
-		x = Variable(x.type(dtype), volatile=True)
+		x = Variable(x.type(dtype), requires_grad=False)
 		y = Variable(y.type(dtype), requires_grad=False)
 
 		# Run the model forward and compare with ground truth.

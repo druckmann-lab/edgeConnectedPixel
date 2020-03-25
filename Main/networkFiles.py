@@ -96,18 +96,18 @@ class RecurrentScaled(torch.nn.Module):
 class RecurrentScaledMasked(torch.nn.Module):
 	def __init__(self, D_in, H, D_out, layers, imageSize, boundarySize):
 		super(RecurrentScaledMasked, self).__init__()
-		weightMask = generateSquareWeightMask(imageSize, boundarySize)
-		self.iteratedLayer = RepeatedLayersScaledMasked(D_in, H, layers, weightMask)
+		weightMask, diagMask = generateSquareWeightMask(imageSize, boundarySize)
+		self.iteratedLayer = RepeatedLayersScaledMasked(D_in, H, layers, weightMask, diagMask)
 		self.outputLayer = nn.Linear(H, D_out)
 		self.tanh = nn.Tanh()
 		self.hidden_size = H
 
 	def forward(self, x, dtype):
 		#dtype = torch.cuda.FloatTensor
-		u = Variable(torch.zeros(self.hidden_size).type(dtype))
+		u = Variable(-1*torch.ones(self.hidden_size).type(dtype))
 		u = self.iteratedLayer(u, x)
-		y_pred = self.tanh(self.outputLayer(u))
-		return y_pred
+		#y_pred = self.tanh(self.outputLayer(u))
+		return u
 
 
 class RecurrentScaledGrid(torch.nn.Module):
