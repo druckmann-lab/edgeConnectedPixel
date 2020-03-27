@@ -100,6 +100,8 @@ def modelInit(modelBlock, model_type, key, input_size, hidden_size, layers, imag
 	logger = logging.getLogger(__name__)
 	if (model_type == "DeepNet"):
 		modelBlock[key]["Model"] = NF.DeepNet(input_size, hidden_size, input_size, layers)
+	elif (model_type == "WideDeepNet"):
+		modelBlock[key]["Model"] = NF.DeepNet(input_size, 5*input_size, input_size, layers)
 	elif (model_type == "DeepNetInput"):
 		modelBlock[key]["Model"] = NF.DeepNetInput(input_size, hidden_size, input_size, layers)
 	elif (model_type == "Recurrent"):

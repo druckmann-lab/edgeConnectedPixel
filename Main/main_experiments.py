@@ -117,6 +117,9 @@ def main(args):
 	if os.path.isfile(hyper_path):
 		print('Loading hyperparameter block.')
 		hyperparameter = torch.load(hyper_path)
+		hyperparameter["WideDeepNet"][15] = hyperparameter["DeepNet"][10]
+		hyperparameter["WideDeepNet"][20] = hyperparameter["DeepNet"][10]
+		hyperparameter["WideDeepNet"][25] = hyperparameter["DeepNet"][10]
 	else:
 		print("=> no hyperparameter block found at '{}'".format(hyper_path))
 		# hyperparameter = {}
