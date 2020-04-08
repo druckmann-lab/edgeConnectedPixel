@@ -35,6 +35,32 @@ class DeepNet(torch.nn.Module):
 		return y_pred
 
 
+class DeepNetReLU(torch.nn.Module):
+	def __init__(self, D_in, H, D_out, layers):
+		super(DeepNet, self).__init__()
+		d = collections.OrderedDict()
+
+		# First hidden layer:
+		d.update({('Layer0', nn.Linear(D_in, H))})
+		d.update({('ReLU0', nn.ReLU())})
+		
+		# Intermediate hidden layers
+		for i in range(1,layers):
+			d.update({('Layer'+str(i), nn.Linear(H, H))})
+			d.update({('ReLU'+str(i), nn.ReLU())})
+
+
+		self.hiddenLayers = nn.Sequential(d)
+
+		self.output = nn.Linear(H, D_out)
+		self.relu = nn.ReLU()
+
+	def forward(self, x, dtype):
+		x = self.hiddenLayers(x)
+		y_pred = self.tanh(self.output(x))
+		return y_pred
+
+
 class DeepNetInput(torch.nn.Module):
 	def __init__(self, D_in, H, D_out, layers):
 		super(DeepNetInput, self).__init__()
