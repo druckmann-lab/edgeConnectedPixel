@@ -121,6 +121,10 @@ def main(args):
 		hyperparameter["WideDeepNet"][15] = hyperparameter["DeepNet"][10]
 		hyperparameter["WideDeepNet"][20] = hyperparameter["DeepNet"][10]
 		hyperparameter["WideDeepNet"][25] = hyperparameter["DeepNet"][10]
+		hyperparameter["DeepNetReLU"][15] = hyperparameter["DeepNet"][10]
+		hyperparameter["DeepNetReLU"][20] = hyperparameter["DeepNet"][10]
+		hyperparameter["DeepNetReLU"][25] = hyperparameter["DeepNet"][10]
+		hyperparameter["DeepNetReLU"][30] = hyperparameter["DeepNet"][10]
 	else:
 		print("=> no hyperparameter block found at '{}'".format(hyper_path))
 		# hyperparameter = {}
