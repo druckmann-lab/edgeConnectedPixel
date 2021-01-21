@@ -37,7 +37,7 @@ class DeepNet(torch.nn.Module):
 
 class DeepNetReLU(torch.nn.Module):
 	def __init__(self, D_in, H, D_out, layers):
-		super(DeepNet, self).__init__()
+		super(DeepNetReLU, self).__init__()
 		d = collections.OrderedDict()
 
 		# First hidden layer:
@@ -54,10 +54,39 @@ class DeepNetReLU(torch.nn.Module):
 
 		self.output = nn.Linear(H, D_out)
 		self.relu = nn.ReLU()
+		self.tanh = nn.Tanh()
 
 	def forward(self, x, dtype):
 		x = self.hiddenLayers(x)
 		y_pred = self.tanh(self.output(x))
+		return y_pred
+
+
+class DeepNetSkip(torch.nn.Module):
+	def __init__(self, D_in, H, D_out, layers):
+		super(DeepNetSkip, self).__init__()
+		d = collections.OrderedDict()
+		self.input_size = D_in
+		self.hidden_size = H
+		self.output_size = D_out
+		
+		# Intermediate hidden layers
+		for i in range(0,layers):
+			if (i % 4 == 0):
+				d.update({('Layer'+str(i), inputLayers(self.input_size, self.hidden_size))})
+			else:	
+				d.update({('Layer'+str(i), feedforwardLayer(self.input_size, self.hidden_size))})
+
+		self.hiddenLayers = inputSequential(d)
+
+		self.outputLayer = nn.Linear(self.hidden_size, self.output_size)
+		self.tanh = nn.Tanh()
+
+	def forward(self, x, dtype):
+		#dtype = torch.cuda.FloatTensor
+		u = Variable(torch.zeros(self.hidden_size).type(dtype))
+		u = self.hiddenLayers(u, x)
+		y_pred = self.tanh(self.outputLayer(u))
 		return y_pred
 
 
@@ -213,6 +242,18 @@ class inputLayers(nn.Module):
 	def forward(self, x, y):
 		u = F.tanh(self.hiddenWeight(x) + self.inputWeight(y))
 		return u
+
+
+class feedforwardLayer(nn.Module):
+	def __init__(self, D_input, hidden):
+		super(feedforwardLayer, self).__init__()
+		self.hiddenWeight = nn.Linear(hidden, hidden)
+		self.tanh = nn.Tanh()
+
+	def forward(self, x, y):
+		u = self.tanh(self.hiddenWeight(x))
+		return u
+
 
 class inputSequential(nn.Sequential):
 	def forward(self, inputOne, inputTwo):

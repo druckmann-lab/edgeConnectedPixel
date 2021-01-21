@@ -100,8 +100,10 @@ def modelInit(modelBlock, model_type, key, input_size, hidden_size, layers, imag
 	logger = logging.getLogger(__name__)
 	if (model_type == "DeepNet"):
 		modelBlock[key]["Model"] = NF.DeepNet(input_size, hidden_size, input_size, layers)
+	elif (model_type == "DeepNetSkip"):
+		modelBlock[key]["Model"] = NF.DeepNetSkip(input_size, hidden_size, input_size, layers)
 	elif (model_type == "WideDeepNet"):
-		modelBlock[key]["Model"] = NF.DeepNetReLU(input_size, 3*input_size, input_size, layers)
+		modelBlock[key]["Model"] = NF.DeepNetReLU(input_size, 4*input_size, input_size, layers)
 	elif (model_type == "DeepNetReLU"):
 		modelBlock[key]["Model"] = NF.DeepNetReLU(input_size, hidden_size, input_size, layers)
 	elif (model_type == "DeepNetInput"):

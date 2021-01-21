@@ -118,13 +118,14 @@ def main(args):
 		print('Loading hyperparameter block.')
 		hyperparameter = torch.load(hyper_path)
 		hyperparameter["WideDeepNet"] = {}
+		hyperparameter["DeepNetSkip"] = {}
 		hyperparameter["WideDeepNet"][15] = hyperparameter["DeepNet"][10]
 		hyperparameter["WideDeepNet"][20] = hyperparameter["DeepNet"][10]
 		hyperparameter["WideDeepNet"][25] = hyperparameter["DeepNet"][10]
-		hyperparameter["DeepNetReLU"][15] = hyperparameter["DeepNet"][10]
-		hyperparameter["DeepNetReLU"][20] = hyperparameter["DeepNet"][10]
-		hyperparameter["DeepNetReLU"][25] = hyperparameter["DeepNet"][10]
-		hyperparameter["DeepNetReLU"][30] = hyperparameter["DeepNet"][10]
+		hyperparameter["DeepNetSkip"][15] = hyperparameter["DeepNetInput"][15]
+		hyperparameter["DeepNetSkip"][20] = hyperparameter["DeepNetInput"][20]
+		hyperparameter["DeepNetSkip"][25] = hyperparameter["DeepNetInput"][25]
+		hyperparameter["DeepNetSkip"][30] = hyperparameter["DeepNetInput"][5]
 	else:
 		print("=> no hyperparameter block found at '{}'".format(hyper_path))
 		# hyperparameter = {}
