@@ -153,12 +153,15 @@ def trainModel_Exp(modelBlock, resultBlock, n_epochs, log_file, result_file, mod
 	epochs_total = epochs_trained + n_epochs
 	print(epochs_total)
 
+	# Generate test dictionary
+	testDict = generateSamples(modelBlock["Meta"]["N"], modelBlock["Meta"]["Distribution"], 10240, test=True)
+
 	for epoch in range(n_epochs):
 
 		epoch_real = epoch + epochs_trained
 		# Generate training samples and iterate through all models in modelList
 		print('Starting epoch %d / %d' % (epoch_real + 1, epochs_total))
-		train_set = generateSamples(modelBlock["Meta"]["N"], modelBlock["Meta"]["Distribution"], 50000, test=False)
+		train_set = generateSamples(modelBlock["Meta"]["N"], modelBlock["Meta"]["Distribution"], 5120, test=False)
 		
 		for key, val in modelBlock.items():
 			if (key != "Meta"):
@@ -170,8 +173,6 @@ def trainModel_Exp(modelBlock, resultBlock, n_epochs, log_file, result_file, mod
 		if (((epoch_real % 25) == 0) or (epoch == (n_epochs - 1))):	
 
 			# Every 50 epochs, evaluate the performance of all the models and print summary statistics
-			testDict = generateSamples(modelBlock["Meta"]["N"], modelBlock["Meta"]["Distribution"], 100000, test=True)
-
 			print('')
 			logger.info('Finishing epoch %d / %d' % (epoch_real + 1, epochs_total))
 
@@ -202,7 +203,7 @@ def trainModel_Exp(modelBlock, resultBlock, n_epochs, log_file, result_file, mod
 			accAll_array = np.asarray(accAll)
 			accPath_array = np.asarray(accPath)
 			accDistract_array = np.asarray(accDistract)
-			print(loss_array)
+			print(accAll_array)
 
 			logger.info('[Loss] Mean:%.6f, Median:%.6f, Best:%.6f' % (np.mean(loss_array),
 				np.median(loss_array), np.min(loss_array)))
@@ -210,8 +211,10 @@ def trainModel_Exp(modelBlock, resultBlock, n_epochs, log_file, result_file, mod
 				np.median(accAll_array), np.min(accAll_array)))
 			logger.info('[Accuracy (Edge-Connected Paths)] Mean:%.6f, Median:%.6f, Best:%.6f ' % (np.mean(accPath_array),
 				np.median(accPath_array), np.min(accPath_array)))
+			print(accPath_array)
 			logger.info('[Accuracy (Distractors)] Mean:%.6f, Median:%.6f, Best:%.6f ' % (np.mean(accDistract_array),
 				np.median(accDistract_array), np.min(accDistract_array)))
+			print(accDistract_array)
 			logger.info('')
 			print('')
 
@@ -329,52 +332,6 @@ def checkAccuracy(model, loss_fn, dtype, batch, testDict):
 	avg_loss = sum(losses)/float(len(losses))
 
 	return accAll, accPath, accDistract, avg_loss
-
-def perPixelAccuracy(model, loss_fn, dtype, batch, testDict):
-	# Function CHECK_ACCURACY
-	# Evaluate model on test training set
-	# Parameters:
-	# 		* model: Pytorch model to train
-	#		* test_dset: Test set for model
-
-	# Create two loaders: one with the path labels; one with the distractor labels
-	test_dsetPath = torch.utils.data.TensorDataset(testDict["Features"], testDict["Labels"])
-	loaderPath = DataLoader(test_dsetPath, batch_size=batch, shuffle=True)
-
-	test_dsetDistract = torch.utils.data.TensorDataset(testDict["Features"], testDict["Distractors"])
-	loaderDistract = DataLoader(test_dsetDistract, batch_size=batch, shuffle=True)
-
-	model.eval()
-	num_correct, num_samples = 0, 0
-	num_correctPath, num_samplesPath = 0, 0
-	num_correctDistract, num_samplesDistract = 0, 0
-	losses = []
-
-	# The accuracy on all pixels and path pixels can be calculated from the image labels
-	# Also record the loss
-	for x, y in loaderPath:
-		# Cast the image data to the correct type and wrap it in a Variable. At
-		# test-time when we do not need to compute gradients, marking the Variable
-		# as volatile can reduce memory usage and slightly improve speed.
-		x = Variable(x.type(dtype), requires_grad=False)
-		y = Variable(y.type(dtype), requires_grad=False)
-
-		# Run the model forward and compare with ground truth.
-		output = model(x, dtype).type(dtype)
-		loss =loss_fn(output, y).type(dtype)
-		preds = output.sign() 
-
-		# Compute accuracy on ALL pixels
-		#num_correct += (torch.abs(preds.data[:, :])).sum(axis=0)
-		num_correct += (preds.data[:, :] == y.data[:,:]).sum(dim=0)
-		num_samples += x.size(0) #* x.size(1)
-
-	 
-
-	# Return the fraction of datapoints that were incorrectly classified.
-	accAll = (num_correct.type(torch.FloatTensor) / (num_samples))
-
-	return accAll
 
 
 

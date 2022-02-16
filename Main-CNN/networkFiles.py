@@ -9,6 +9,66 @@ from weightMask import generateSquareWeightMask, generateGridWeightMask
 
 ## Netowrk Types ##
 
+class Unet(torch.nn.Module):
+	def __init__(self):
+		super(Unet, self).__init__()
+		self.conv1 = nn.Conv2d(1, 16, 3, padding='same')
+		self.conv2 = nn.Conv2d(16, 16, 3, padding='same')
+		self.pool = nn.MaxPool2d(2, 2)
+
+		self.conv3 = nn.Conv2d(16, 32, 3, padding='same')
+		self.conv4 = nn.Conv2d(32, 32, 3, padding='same')
+
+		self.conv5 = nn.Conv2d(32, 64, 3, padding='same')
+		self.conv6 = nn.Conv2d(64, 64, 3, padding='same')
+
+		#Expansive path 
+		self.upsample1 = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True) 
+		self.upconv1 = nn.Conv2d(64, 32, 3, padding='same')
+		self.conv7 = nn.Conv2d(64, 32, 3, padding='same')
+		self.conv8 = nn.Conv2d(32, 32, 3, padding='same')
+
+		self.upsample2 = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True) 
+		self.upconv2 = nn.Conv2d(32, 16, 3, padding='same')
+		self.conv9 = nn.Conv2d(32, 16, 3, padding='same')
+		self.conv10 = nn.Conv2d(16, 16, 3, padding='same')
+
+		self.conv11 = nn.Conv2d(16, 1, 1)
+
+	def forward(self, x, dtype):
+		x = torch.reshape(x, (32, 16, 16))
+		x = x[:, None, :, :]
+		#print(x.size())
+		c1 = F.relu(self.conv1(x))
+		c1 = F.relu(self.conv2(c1))
+		c2 = self.pool(c1)
+
+		c2 = F.relu(self.conv3(c2))
+		c2 = F.relu(self.conv4(c2))
+		c3 = self.pool(c2)
+
+		c3 = F.relu(self.conv5(c3))
+		c3 = F.relu(self.conv6(c3))
+
+		c4 = self.upconv1(self.upsample1(c3))
+		# Concatenate along the channel dimension
+		c4 = torch.cat([c2, c4], 1)
+		c4 = F.relu(self.conv7(c4))
+		c4 = F.relu(self.conv8(c4))
+
+		c5 = self.upconv2(self.upsample2(c4))
+		# Concatenate along the channel dimension
+		c5 = torch.cat([c1, c5], 1)
+		c5 = F.relu(self.conv9(c5))
+		c5 = F.relu(self.conv10(c5))
+
+		output = F.tanh(self.conv11(c5))
+		output = torch.reshape(output, (32, 1, 256))
+		output = torch.squeeze(output)
+		#print(output.size())
+		return output
+
+
 class DeepNet(torch.nn.Module):
 	def __init__(self, D_in, H, D_out, layers):
 		super(DeepNet, self).__init__()
@@ -380,8 +440,8 @@ class RepeatedLayersMaskedFixed(torch.nn.Module):
 
 		self.mask = weightMask
 		self.diagMask = diagMask
-		self.invertMask = ~self.mask #torch.ones((hidden, hidden)).type(torch.ByteTensor) - self.mask
-		self.invertDiag = ~self.diagMask #torch.ones((hidden, hidden)).type(torch.ByteTensor) - self.diagMask
+		self.invertMask = torch.ones((hidden, hidden)).type(torch.ByteTensor) - self.mask
+		self.invertDiag = torch.ones((hidden, hidden)).type(torch.ByteTensor) - self.diagMask
 		self.iteration = layers
 		self.hiddenWeight = nn.Linear(hidden, hidden)
 		self.inputWeight = nn.Linear(D_input, hidden, bias=False)
